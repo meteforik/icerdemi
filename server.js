@@ -2,10 +2,14 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const stringSimilarity = require('string-similarity');
+const path = require('path'); // Yeni eklendi
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// Statik dosyaları (index.html, style.css, script.js) sunmak için
+app.use(express.static(path.join(__dirname))); 
 
 const SHEET_URL = process.env.GOOGLE_SHEET_URL;
 
@@ -18,7 +22,7 @@ async function getRawData() {
     try {
         const response = await fetch(SHEET_URL);
         const csvText = await response.text();
-        const satirlar = csvText.split(/\r?\n/).slice(1); // Başlık satırını atla
+        const satirlar = csvText.split(/\r?\n/).slice(1);
         return satirlar.filter(s => s.trim()).map(s => {
             const sutunlar = s.split(',').map(col => col.replace(/^"|"$/g, '').trim());
             return { isim: sutunlar[0], durum: sutunlar[1] || "Serbest" };
@@ -46,19 +50,19 @@ app.get('/api/sorgula', async (req, res) => {
     res.json({ durum });
 });
 
-// 2. Yeni Liste Rotası (Ana Sayfadaki listeler için)
+// 2. Yeni Liste Rotası
 app.get('/api/liste-verileri', async (req, res) => {
     const data = await getRawData();
-    
-    // Son eklenenler (Listenin en altındaki 5 kişi)
     const sonEklenenler = data.slice(-5).reverse();
-    
-    // "Popüler" olanlar (Burada logic: Eğer durumları "İçeride" ise veya özel bir işaret varsa alabiliriz)
-    // Şimdilik listeyi olduğu gibi döndürüyorum, sen ön yüzde istediğini filtreleyebilirsin.
     res.json({ sonEklenenler, tumListe: data });
+});
+
+// ANA ROTA: index.html dosyasını döndürür
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Sunucu çalışıyor.`);
+    console.log(`🚀 Sunucu ${PORT} portunda çalışıyor.`);
 });
