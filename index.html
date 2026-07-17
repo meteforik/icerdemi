@@ -92,7 +92,7 @@
             durumAlani.className = "text-xl font-medium text-slate-400";
 
             try {
-                const response = await fetch(`http://localhost:3000/api/sorgula?isim=${encodeURIComponent(isim)}`);
+                const response = await fetch(`https://icerde-mi-api.onrender.com/api/sorgula?isim=${encodeURIComponent(isim)}`);
                 const data = await response.json();
 
                 if (data.error) {
