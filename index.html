@@ -26,9 +26,7 @@
         <div class="grid grid-cols-2 gap-4 text-left">
             <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
                 <h3 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-3 border-b border-slate-700 pb-1">⏳ Son Güncellenenler</h3>
-                <ul id="son-eklenenler-listesi" class="space-y-2 text-sm text-slate-300">
-                    <!-- Dinamik veriler buraya yüklenecek -->
-                </ul>
+                <ul id="son-eklenenler-listesi" class="space-y-2 text-sm text-slate-300"></ul>
             </div>
 
             <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
@@ -45,17 +43,15 @@
     </div>
 
     <script>
-        // Sayfa açılır açılmaz verileri çek
         window.onload = async () => {
             try {
                 const response = await fetch('https://icerde-mi-api.onrender.com/api/liste-verileri');
                 const data = await response.json();
                 const listeDiv = document.getElementById('son-eklenenler-listesi');
-                
                 listeDiv.innerHTML = data.sonEklenenler.map(item => 
                     `<li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('${item.isim}')">• ${item.isim}</li>`
                 ).join('');
-            } catch (err) { console.error("Liste yüklenemedi:", err); }
+            } catch (err) { console.error("Liste yüklenemedi"); }
         };
 
         function listedenAra(isim) {
@@ -72,15 +68,31 @@
             if (!isim) return alert("Lütfen bir isim girin.");
 
             sonucKutusu.classList.remove('hidden');
+            isimAlani.innerText = isim;
             durumAlani.innerText = "Sorgulanıyor...";
+            durumAlani.className = "text-xl font-medium text-slate-400";
             
             try {
                 const response = await fetch(`https://icerde-mi-api.onrender.com/api/sorgula?isim=${encodeURIComponent(isim)}`);
                 const data = await response.json();
-                isimAlani.innerText = isim;
+                
+                const gelenDurum = data.durum.toLowerCase();
                 durumAlani.innerText = `Şu an: ${data.durum}.`;
+
+                if (gelenDurum.includes("serbest")) {
+                    durumAlani.className = "text-xl font-medium text-green-400";
+                } else if (gelenDurum.includes("tutuklu")) {
+                    durumAlani.className = "text-xl font-medium text-red-500";
+                } else if (gelenDurum.includes("gözaltı")) {
+                    durumAlani.className = "text-xl font-medium text-yellow-400";
+                } else if (gelenDurum.includes("ev hapsi")) {
+                    durumAlani.className = "text-xl font-medium text-blue-400";
+                } else {
+                    durumAlani.className = "text-xl font-medium text-white";
+                }
             } catch (error) {
                 durumAlani.innerText = "Sunucuya bağlanılamadı.";
+                durumAlani.className = "text-xl font-medium text-red-500";
             }
         }
     </script>
