@@ -9,116 +9,56 @@ app.use(express.json());
 
 const SHEET_URL = process.env.GOOGLE_SHEET_URL;
 
-// Google verilerini sunucunun hafızasında (RAM) tutacağımız lokal değişken
-let hafizadakiVeriTabani = {};
-
 function turkceTemizle(metin) {
-    return metin
-        .toLowerCase()
-        .trim()
-        .replace(/ğ/g, 'g')
-        .replace(/ü/g, 'u')
-        .replace(/ş/g, 's')
-        .replace(/ı/g, 'i')
-        .replace(/ö/g, 'o')
-        .replace(/ç/g, 'c');
+    return metin.toLowerCase().trim().replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c');
 }
 
-// Google Sheets'ten verileri arka planda çeken fonksiyon
-async function guncelleVeriTabani() {
+// Ham veriyi çeken yardımcı fonksiyon
+async function getRawData() {
     try {
-        if (!SHEET_URL) {
-            console.error("❌ HATA: .env dosyasında GOOGLE_SHEET_URL tanımlanmamış!");
-            return;
-        }
-
         const response = await fetch(SHEET_URL);
-        if (!response.ok) throw new Error(`Google sunucusu hata döndürdü: ${response.status}`);
-        
         const csvText = await response.text();
-        
-        if (csvText.includes("<!DOCTYPE html>") || csvText.includes("<html")) {
-            console.error("❌ HATA: Google Sheets linki yanlış! CSV formatında yayınlandığından emin olun.");
-            return;
-        }
-
-        const satirlar = csvText.split(/\r?\n/);
-        const yeniVeriTabani = {};
-
-        for (let i = 0; i < satirlar.length; i++) {
-            if (!satirlar[i].trim()) continue;
-            
-            const sutunlar = satirlar[i].split(',').map(s => s.replace(/^"|"$/g, '').trim());
-            
-            if (sutunlar.length >= 2) {
-                const isim = sutunlar[0].toLowerCase().trim();
-                const durum = sutunlar[1].trim();
-                
-                if (isim && durum && isim !== "isim" && isim !== "name" && durum !== "durum" && durum !== "status") {
-                    yeniVeriTabani[isim] = durum;
-                }
-            }
-        }
-
-        // Hafızadaki eski veriyi en güncel veriyle değiştiriyoruz
-        hafizadakiVeriTabani = yeniVeriTabani;
-        console.log(`🔄 [HAFIZA GÜNCELLENDİ] Google Sheets başarıyla senkronize edildi. Toplam Kayıt: ${Object.keys(hafizadakiVeriTabani).length}`);
-    } catch (error) {
-        console.error("❌ Tablo arka planda güncellenirken hata oluştu:", error.message);
-    }
+        const satirlar = csvText.split(/\r?\n/).slice(1); // Başlık satırını atla
+        return satirlar.filter(s => s.trim()).map(s => {
+            const sutunlar = s.split(',').map(col => col.replace(/^"|"$/g, '').trim());
+            return { isim: sutunlar[0], durum: sutunlar[1] || "Serbest" };
+        });
+    } catch (e) { return []; }
 }
 
-// SİSTEM İLK AÇILDIĞINDA VERİLERİ BİR KERE ÇEK
-guncelleVeriTabani();
-
-// HER 5 DAKİKADA BİR (300000 ms) ARKA PLANDA OTOMATİK GÜNCELLE
-// Sen kodla veya sunucuyla uğraşmazsın, o arkada Google'dan yeni isimleri sessizce çeker.
-setInterval(guncelleVeriTabani, 300000);
-
-
-app.get('/api/sorgula', (req, res) => {
+// 1. Arama Rotası
+app.get('/api/sorgula', async (req, res) => {
     let { isim } = req.query;
-
-    if (!isim) {
-        return res.status(400).json({ error: "Lütfen bir isim belirtin." });
-    }
-
-    const arananIsimNormal = isim.trim().toLowerCase();
-    const arananIsimTemiz = turkceTemizle(isim);
-
+    const dataList = await getRawData();
+    const veriTabani = dataList.reduce((acc, item) => ({ ...acc, [item.isim.toLowerCase()]: item.durum }), {});
+    
     let durum = "Serbest";
-
-    // ARTIK INTERNETE GİTMİYORUZ! Doğrudan RAM'deki değişkeni kontrol ediyoruz (Işık hızı)
-    const listedekiIsimler = Object.keys(hafizadakiVeriTabani);
-
-    if (listedekiIsimler.length > 0) {
-        // 1. AŞAMA: Birebir veya Kısmi Eşleşme Kontrolü
-        if (hafizadakiVeriTabani[arananIsimNormal]) {
-            durum = hafizadakiVeriTabani[arananIsimNormal];
-        } else {
-            const bulunanAnahtar = listedekiIsimler.find(key => key.includes(arananIsimNormal) || arananIsimNormal.includes(key));
-            
-            if (bulunanAnahtar) {
-                durum = hafizadakiVeriTabani[bulunanAnahtar];
-            } else {
-                // 2. AŞAMA: Akıllı Harf Hatası Kontrolü
-                const temizListedekiIsimler = listedekiIsimler.map(isim => turkceTemizle(isim));
-                const matches = stringSimilarity.findBestMatch(arananIsimTemiz, temizListedekiIsimler);
-                const enYakinEslenme = matches.bestMatch;
-
-                if (enYakinEslenme.rating >= 0.65) {
-                    const orijinalIsimIndex = matches.ratings.findIndex(r => r.target === enYakinEslenme.target);
-                    const gercekAnahtar = listedekiIsimler[orijinalIsimIndex];
-                    durum = hafizadakiVeriTabani[gercekAnahtar];
-                }
-            }
+    const arananIsimNormal = isim.trim().toLowerCase();
+    
+    if (veriTabani[arananIsimNormal]) {
+        durum = veriTabani[arananIsimNormal];
+    } else {
+        const matches = stringSimilarity.findBestMatch(turkceTemizle(isim), Object.keys(veriTabani).map(turkceTemizle));
+        if (matches.bestMatch.rating >= 0.65) {
+            durum = veriTabani[Object.keys(veriTabani)[matches.bestMatchIndex]];
         }
     }
-
     res.json({ durum });
+});
+
+// 2. Yeni Liste Rotası (Ana Sayfadaki listeler için)
+app.get('/api/liste-verileri', async (req, res) => {
+    const data = await getRawData();
+    
+    // Son eklenenler (Listenin en altındaki 5 kişi)
+    const sonEklenenler = data.slice(-5).reverse();
+    
+    // "Popüler" olanlar (Burada logic: Eğer durumları "İçeride" ise veya özel bir işaret varsa alabiliriz)
+    // Şimdilik listeyi olduğu gibi döndürüyorum, sen ön yüzde istediğini filtreleyebilirsin.
+    res.json({ sonEklenenler, tumListe: data });
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`🚀 Işık hızında (RAM Önbellekli) Sunucu http://localhost:${PORT} üzerinde hazır.`);
+    console.log(`🚀 Sunucu çalışıyor.`);
 });
