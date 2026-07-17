@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <title>İçerde Mi? - Güncel Durum Sorgulama</title>
+</head>
+<body class="bg-slate-900 text-white min-h-screen flex flex-col items-center justify-between p-6 antialiased font-sans">
+
+    <!-- Üst ve Orta İçerik Konteyneri -->
+    <div class="w-full max-w-2xl text-center my-auto">
+        <!-- Başlık -->
+        <h1 class="text-5xl font-extrabold mb-8 tracking-tighter uppercase">İÇERDE<span class="text-red-500"> Mİ?</span></h1>
+        
+        <!-- Arama Kutusu -->
+        <div class="relative mb-6">
+            <input type="text" id="search" placeholder="Ünlü ismi girin..." 
+                   class="w-full p-4 rounded-xl bg-slate-800 border border-slate-700 focus:outline-none focus:border-red-500 transition-all text-lg shadow-xl">
+            <button onclick="ara()" class="absolute right-2 top-2 bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold transition-all">ARA</button>
+        </div>
+
+        <!-- Sonuç Ekranı -->
+        <div id="result" class="mb-6 p-6 rounded-2xl bg-slate-800/50 border border-slate-700 hidden">
+            <!-- Öneri Alanı -->
+            <p id="suggestion-display" class="text-sm font-light text-slate-400 mb-2 lowercase hidden"></p>
+            
+            <h2 id="name-display" class="text-3xl font-bold mb-2 uppercase"></h2>
+            <p id="status-display" class="text-xl font-medium"></p>
+        </div>
+
+        <!-- Listeler -->
+        <div class="grid grid-cols-2 gap-4 text-left">
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                <h3 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-3 border-b border-slate-700 pb-1">⏳ Son Güncellenenler</h3>
+                <ul class="space-y-2 text-sm text-slate-300">
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Oğuzhan Uğur')">• Oğuzhan Uğur</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Seçil Erzan')">• Seçil Erzan</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Dilan Polat')">• Dilan Polat</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Ezhel')">• Ezhel</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Polat Alemdar')">• Polat Alemdar</li>
+                </ul>
+            </div>
+
+            <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
+                <h3 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-3 border-b border-slate-700 pb-1">🔥 En Sık Arananlar</h3>
+                <ul class="space-y-2 text-sm text-slate-300">
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Dilan Polat')">• Dilan Polat</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Oğuzhan Uğur')">• Oğuzhan Uğur</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Seçil Erzan')">• Seçil Erzan</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Engin Polat')">• Engin Polat</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Haluk Levent')">• Haluk Levent</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- En Alt Kısım: Yazı boyutu büyütülen ve rengi açık griye çekilen imza alanı -->
+    <div class="w-full text-center pt-8 pb-2">
+        <p class="text-sm font-light tracking-widest text-slate-400 select-none lowercase">
+            meteforik, 2026
+        </p>
+    </div>
+
+    <script>
+        document.getElementById('search').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') ara();
+        });
+
+        function listedenAra(isim) {
+            document.getElementById('search').value = isim;
+            ara();
+        }
+
+        async function ara() {
+            const aramaKutusu = document.getElementById('search');
+            const sonucKutusu = document.getElementById('result');
+            const isimAlani = document.getElementById('name-display');
+            const durumAlani = document.getElementById('status-display');
+            const oneriAlani = document.getElementById('suggestion-display');
+            
+            const isim = aramaKutusu.value.trim();
+            if (!isim) {
+                alert("Lütfen bir isim girin.");
+                return;
+            }
+
+            sonucKutusu.classList.remove('hidden');
+            oneriAlani.classList.add('hidden'); 
+            isimAlani.innerText = isim;
+            durumAlani.innerText = "Sorgulanıyor...";
+            durumAlani.className = "text-xl font-medium text-slate-400";
+
+            try {
+                const response = await fetch(`http://localhost:3000/api/sorgula?isim=${encodeURIComponent(isim)}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    durumAlani.innerText = "Bir hata oluştu.";
+                    durumAlani.className = "text-xl font-medium text-red-500";
+                    return;
+                }
+
+                if (data.onerilenIsim) {
+                    oneriAlani.innerText = "sanırım şunu demek istediniz;";
+                    oneriAlani.classList.remove('hidden');
+                    isimAlani.innerText = data.onerilenIsim;
+                }
+
+                durumAlani.innerText = `Şu an: ${data.durum}.`;
+                const gelenDurum = data.durum.toLowerCase().trim();
+                
+                if (gelenDurum.includes("serbest")) {
+                    durumAlani.className = "text-xl font-medium text-green-400";
+                } else if (gelenDurum.includes("tutuklu")) {
+                    durumAlani.className = "text-xl font-medium text-red-500";
+                } else if (gelenDurum.includes("gözaltı") || gelenDurum.includes("gozalti")) {
+                    durumAlani.className = "text-xl font-medium text-yellow-400";
+                } else if (gelenDurum.includes("ev hapsi")) {
+                    durumAlani.className = "text-xl font-medium text-blue-400";
+                } else {
+                    durumAlani.className = "text-xl font-medium text-white";
+                }
+
+            } catch (error) {
+                console.error("Hata:", error);
+                durumAlani.innerText = "Sunucuya bağlanılamadı.";
+                durumAlani.className = "text-xl font-medium text-red-500";
+            }
+        }
+    </script>
+</body>
+</html>
