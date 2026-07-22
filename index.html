@@ -43,7 +43,11 @@
             <div class="bg-slate-800/40 border border-slate-700/60 p-4 rounded-xl">
                 <h3 class="text-sm font-bold tracking-wider text-slate-400 uppercase mb-3 border-b border-slate-700 pb-1">🔥 En Sık Arananlar</h3>
                 <ul class="space-y-2 text-sm text-slate-300">
-                    <li class="text-slate-500 italic">Yakında eklenecek...</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Oğuzhan Uğur')">• Oğuzhan Uğur</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Haluk Levent')">• Haluk Levent</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Recep Tayyip Erdoğan')">• Recep Tayyip Erdoğan</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Ekrem İmamoğlu')">• Ekrem İmamoğlu</li>
+                    <li class="hover:text-white transition-colors cursor-pointer" onclick="listedenAra('Fatma Soydaş')">• Fatma Soydaş</li>
                 </ul>
             </div>
         </div>
@@ -84,7 +88,6 @@
             const durumAlani = document.getElementById('status-display');
             const oneriAlani = document.getElementById('suggestion-display');
             
-            // Yeni arama yapıldığında feedback butonunu ve inputunu sıfırla
             const feedbackBtn = document.querySelector('button[onclick="gonderFeedback(this)"]');
             const feedbackInput = document.getElementById('feedback-input');
             if (feedbackBtn) {
@@ -143,14 +146,12 @@
                 return;
             }
 
-            // Anında butonu yeşile çevir ve kilitle (bekleme yapmadan)
             btn.innerText = "BİLDİRİLDİ";
             btn.className = "bg-green-600 text-white px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap cursor-default";
             btn.disabled = true;
             inputAlani.disabled = true;
 
             try {
-                // Arkada sessizce isteği gönderiyoruz
                 await fetch('https://icerde-mi-api.onrender.com/api/feedback', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
