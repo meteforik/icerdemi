@@ -58,7 +58,7 @@ app.get('/api/sorgula', async (req, res) => {
             durum = veriTabani[enIyiEslesmeOrijinal];
             oneri = enIyiEslesmeOrijinal;
         } else {
-            durum = "Bilinmiyor / Kayıtlı Değil";
+            durum = "Serbest";
             oneri = "";
         }
     }
