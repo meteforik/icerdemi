@@ -18,10 +18,21 @@
             <button onclick="ara()" class="absolute right-2 top-2 bg-red-600 hover:bg-red-700 px-6 py-2 rounded-lg font-bold transition-all">ARA</button>
         </div>
 
-        <div id="result" class="mb-6 p-6 rounded-2xl bg-slate-800/50 border border-slate-700 hidden">
-            <p id="suggestion-display" class="text-xs font-light text-slate-500 mb-2 italic"></p>
-            <h2 id="name-display" class="text-3xl font-bold mb-2 uppercase"></h2>
-            <p id="status-display" class="text-xl font-medium"></p>
+        <div id="result" class="mb-6 p-6 rounded-2xl bg-slate-800/50 border border-slate-700 hidden text-left">
+            <p id="suggestion-display" class="text-xs font-light text-slate-500 mb-2 italic text-center"></p>
+            <h2 id="name-display" class="text-3xl font-bold mb-2 uppercase text-center"></h2>
+            <p id="status-display" class="text-xl font-medium text-center mb-6"></p>
+            
+            <!-- FEEDBACK (GERİ BİLDİRİM) ALANI -->
+            <div class="border-t border-slate-700 pt-4 mt-4">
+                <p class="text-xs text-slate-400 mb-2 font-medium">Bu bilgide hata olduğunu mu düşünüyorsun?</p>
+                <div class="flex gap-2">
+                    <input type="text" id="feedback-input" placeholder="Doğru durumu veya detay yazın..." 
+                           class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-sm focus:outline-none focus:border-red-500">
+                    <button onclick="gonderFeedback()" class="bg-slate-700 hover:bg-red-600 px-4 py-2.5 rounded-lg text-sm font-bold transition-all whitespace-nowrap">BİLDİR</button>
+                </div>
+                <p id="feedback-msg" class="text-xs mt-2 text-green-400 hidden"></p>
+            </div>
         </div>
 
         <div class="grid grid-cols-2 gap-4 text-left">
@@ -73,14 +84,17 @@
             const isimAlani = document.getElementById('name-display');
             const durumAlani = document.getElementById('status-display');
             const oneriAlani = document.getElementById('suggestion-display');
+            const feedbackMsg = document.getElementById('feedback-msg');
             
             if (!isim) return alert("Lütfen bir isim girin.");
 
             sonucKutusu.classList.remove('hidden');
+            feedbackMsg.classList.add('hidden');
+            document.getElementById('feedback-input').value = "";
             oneriAlani.innerText = "";
             isimAlani.innerText = isim;
             durumAlani.innerText = "Sorgulanıyor...";
-            durumAlani.className = "text-xl font-medium text-slate-400";
+            durumAlani.className = "text-xl font-medium text-slate-400 text-center mb-6";
             
             try {
                 const response = await fetch(`https://icerde-mi-api.onrender.com/api/sorgula?isim=${encodeURIComponent(isim)}`);
@@ -94,19 +108,48 @@
                 durumAlani.innerText = `Şu an: ${data.durum}.`;
 
                 if (gelenDurum.includes("serbest")) {
-                    durumAlani.className = "text-xl font-medium text-green-400";
+                    durumAlani.className = "text-xl font-medium text-green-400 text-center mb-6";
                 } else if (gelenDurum.includes("tutuklu")) {
-                    durumAlani.className = "text-xl font-medium text-red-500";
+                    durumAlani.className = "text-xl font-medium text-red-500 text-center mb-6";
                 } else if (gelenDurum.includes("gözaltı")) {
-                    durumAlani.className = "text-xl font-medium text-yellow-400";
+                    durumAlani.className = "text-xl font-medium text-yellow-400 text-center mb-6";
                 } else if (gelenDurum.includes("ev hapsi")) {
-                    durumAlani.className = "text-xl font-medium text-blue-400";
+                    durumAlani.className = "text-xl font-medium text-blue-400 text-center mb-6";
                 } else {
-                    durumAlani.className = "text-xl font-medium text-white";
+                    durumAlani.className = "text-xl font-medium text-white text-center mb-6";
                 }
             } catch (error) {
                 durumAlani.innerText = "Sunucuya bağlanılamadı.";
-                durumAlani.className = "text-xl font-medium text-red-500";
+                durumAlani.className = "text-xl font-medium text-red-500 text-center mb-6";
+            }
+        }
+
+        async function gonderFeedback() {
+            const isim = document.getElementById('name-display').innerText;
+            const mesaj = document.getElementById('feedback-input').value.trim();
+            const feedbackMsg = document.getElementById('feedback-msg');
+
+            if (!mesaj) {
+                alert("Lütfen bir açıklama yazın.");
+                return;
+            }
+
+            try {
+                const response = await fetch('https://icerde-mi-api.onrender.com/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ isim: isim, mesaj: mesaj })
+                });
+
+                if (response.ok) {
+                    feedbackMsg.innerText = "Teşekkürler, bildiriminiz iletildi!";
+                    feedbackMsg.classList.remove('hidden');
+                    document.getElementById('feedback-input').value = "";
+                } else {
+                    alert("Gönderilirken bir hata oluştu.");
+                }
+            } catch (err) {
+                alert("Sunucuya ulaşılamadı.");
             }
         }
     </script>
