@@ -12,6 +12,7 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname))); 
 
 const SHEET_URL = process.env.GOOGLE_SHEET_URL;
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby47saESO4kA38f3UsZMPmlx8ty-k7ndphRL7WGvvZB4OkJKxHnO5FreWW13GU3CPQZ8Q/exec';
 
 function turkceTemizle(metin) {
     return metin.toLowerCase().trim().replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's').replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c');
@@ -74,11 +75,20 @@ app.post('/api/feedback', async (req, res) => {
         return res.status(400).json({ success: false, message: "Eksik bilgi." });
     }
 
-    // Geri bildirimi konsola yazdırıyoruz. İstersen buraya Google Sheets'e otomatik 
-    // satır ekleme (Google Sheets API veya Google Apps Script Web App) entegre edebilirsin.
-    console.log(`[YENİ BİLDİRİM] Kişi: ${isim} | Mesaj/Öneri: ${mesaj}`);
-    
-    res.status(200).json({ success: true, message: "Bildirim alındı." });
+    try {
+        // Google Apps Script Web App'e POST isteği gönderiyoruz
+        await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isim, mesaj })
+        });
+
+        console.log(`[BİLDİRİM KAYDEDİLDİ] Kişi: ${isim} | Mesaj: ${mesaj}`);
+        res.status(200).json({ success: true, message: "Bildirim tabloya eklendi." });
+    } catch (error) {
+        console.error("Feedback gönderilirken hata oluştu:", error);
+        res.status(500).json({ success: false, message: "Sunucu hatası." });
+    }
 });
 
 // ANA ROTA: index.html dosyasını döndürür
