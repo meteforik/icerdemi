@@ -43,18 +43,23 @@ app.get('/api/sorgula', async (req, res) => {
     let oneri = "";
     const arananIsimNormal = isim.trim().toLowerCase();
     
+    // Önce tam eşleşme var mı diye kesin kontrol edelim
     if (veriTabani[arananIsimNormal]) {
         durum = veriTabani[arananIsimNormal];
         oneri = isim.trim();
     } else {
+        // Tam eşleşme yoksa benzerlik oranına bakalım, eşik: %75 (0.75)
         const keys = Object.keys(veriTabani);
         const temizKeys = keys.map(turkceTemizle);
         const matches = stringSimilarity.findBestMatch(turkceTemizle(isim), temizKeys);
         
-        if (matches.bestMatch.rating >= 0.40) {
+        if (matches.bestMatch.rating >= 0.75) {
             const enIyiEslesmeOrijinal = keys[matches.bestMatchIndex];
             durum = veriTabani[enIyiEslesmeOrijinal];
             oneri = enIyiEslesmeOrijinal;
+        } else {
+            durum = "Bilinmiyor / Kayıtlı Değil";
+            oneri = "";
         }
     }
     res.json({ durum, oneri });
