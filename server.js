@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const stringSimilarity = require('string-similarity');
-const path = require('path'); // Yeni eklendi
+const path = require('path');
 
 const app = express();
 app.use(cors());
@@ -33,21 +33,30 @@ async function getRawData() {
 // 1. Arama Rotası
 app.get('/api/sorgula', async (req, res) => {
     let { isim } = req.query;
+    if (!isim) return res.json({ durum: "Serbest", oneri: "" });
+
     const dataList = await getRawData();
     const veriTabani = dataList.reduce((acc, item) => ({ ...acc, [item.isim.toLowerCase()]: item.durum }), {});
     
     let durum = "Serbest";
+    let oneri = "";
     const arananIsimNormal = isim.trim().toLowerCase();
     
     if (veriTabani[arananIsimNormal]) {
         durum = veriTabani[arananIsimNormal];
+        oneri = isim.trim();
     } else {
-        const matches = stringSimilarity.findBestMatch(turkceTemizle(isim), Object.keys(veriTabani).map(turkceTemizle));
-        if (matches.bestMatch.rating >= 0.65) {
-            durum = veriTabani[Object.keys(veriTabani)[matches.bestMatchIndex]];
+        const keys = Object.keys(veriTabani);
+        const temizKeys = keys.map(turkceTemizle);
+        const matches = stringSimilarity.findBestMatch(turkceTemizle(isim), temizKeys);
+        
+        if (matches.bestMatch.rating >= 0.40) {
+            const enIyiEslesmeOrijinal = keys[matches.bestMatchIndex];
+            durum = veriTabani[enIyiEslesmeOrijinal];
+            oneri = enIyiEslesmeOrijinal;
         }
     }
-    res.json({ durum });
+    res.json({ durum, oneri });
 });
 
 // 2. Yeni Liste Rotası
@@ -55,6 +64,21 @@ app.get('/api/liste-verileri', async (req, res) => {
     const data = await getRawData();
     const sonEklenenler = data.slice(-5).reverse();
     res.json({ sonEklenenler, tumListe: data });
+});
+
+// 3. Feedback (Geri Bildirim) Rotası
+app.post('/api/feedback', async (req, res) => {
+    const { isim, mesaj } = req.body;
+    
+    if (!isim || !mesaj) {
+        return res.status(400).json({ success: false, message: "Eksik bilgi." });
+    }
+
+    // Geri bildirimi konsola yazdırıyoruz. İstersen buraya Google Sheets'e otomatik 
+    // satır ekleme (Google Sheets API veya Google Apps Script Web App) entegre edebilirsin.
+    console.log(`[YENİ BİLDİRİM] Kişi: ${isim} | Mesaj/Öneri: ${mesaj}`);
+    
+    res.status(200).json({ success: true, message: "Bildirim alındı." });
 });
 
 // ANA ROTA: index.html dosyasını döndürür
